@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>日経平均株価 10年推移</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;600;700&family=DM+Mono:wght@400;500&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #080c18;
+    --surface: #0f1624;
+    --surface2: #161e30;
+    --border: #1d2b42;
+    --accent: #3b82f6;
+    --accent2: #06b6d4;
+    --up: #22c55e;
+    --down: #ef4444;
+    --yellow: #f59e0b;
+    --purple: #a78bfa;
+    --text: #e2e8f0;
+    --text-muted: #64748b;
+    --text-dim: #94a3b8;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Noto Sans JP', sans-serif;
+    min-height: 100vh;
+    padding: 28px 24px;
+    background-image:
+      radial-gradient(ellipse 90% 40% at 50% -5%, rgba(59,130,246,0.10) 0%, transparent 60%),
+      radial-gradient(ellipse 50% 35% at 85% 95%, rgba(6,182,212,0.06) 0%, transparent 50%);
+  }
+
+  .container { max-width: 1160px; margin: 0 auto; }
+
+  /* ─── Header ─── */
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 24px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 20px;
+  }
+
+  .header-left .eyebrow {
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    color: var(--accent2);
+    text-transform: uppercase;
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+
+  h1 {
+    font-size: 24px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.15;
+    color: #ffffff;
+  }
+  h1 span { color: #94a3b8; font-weight: 300; font-size: 16px; }
+
+  .header-right { text-align: right; }
+
+  .current-price {
+    font-family: 'DM Mono', monospace;
+    font-size: 38px;
+    font-weight: 500;
+    letter-spacing: -0.03em;
+    line-height: 1;
+    color: #ffffff;
+  }
+
+  .price-change {
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    margin-top: 4px;
+    color: var(--up);
+  }
+
+  .price-date { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
+
+  /* ─── KPI ─── */
+  .kpi-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  .kpi {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 13px 16px;
+  }
+
+  .kpi-label {
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+  }
+
+  .kpi-value {
+    font-family: 'DM Mono', monospace;
+    font-size: 20px;
+    font-weight: 500;
+  }
+
+  .kpi-sub { font-size: 10px; color: var(--text-dim); margin-top: 3px; }
+  .up { color: var(--up); }
+  .down { color: var(--down); }
+
+  /* ─── Chart card ─── */
+  .chart-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 24px 24px 20px;
+    margin-bottom: 14px;
+  }
+
+  .chart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 18px;
+  }
+
+  .chart-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-dim);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .period-badge {
+    background: rgba(59,130,246,0.12);
+    color: var(--accent);
+    border: 1px solid rgba(59,130,246,0.28);
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 12px;
+    letter-spacing: 0.07em;
+  }
+
+  .chart-wrap { position: relative; height: 420px; }
+
+  /* ─── Event tags ─── */
+  .events {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+    margin-top: 18px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+  }
+
+  .ev {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 10px;
+    color: var(--text-dim);
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 4px 10px;
+    white-space: nowrap;
+  }
+
+  .ev-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  /* ─── Year bar ─── */
+  .year-row {
+    display: grid;
+    grid-template-columns: repeat(10, 1fr);
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+
+  .year-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 8px;
+    text-align: center;
+  }
+
+  .year-card .yr { font-size: 11px; font-weight: 700; color: var(--text-dim); margin-bottom: 4px; }
+  .year-card .yr-val { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--text); }
+  .year-card .yr-chg { font-size: 10px; margin-top: 2px; font-family: 'DM Mono', monospace; }
+
+  footer {
+    font-size: 10px;
+    color: var(--text-muted);
+    text-align: right;
+    letter-spacing: 0.04em;
+    margin-top: 6px;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <div class="header-left">
+      <div class="eyebrow">Nikkei 225 · 日経平均株価</div>
+      <h1>10年間の株価推移 <span>2016–2026</span></h1>
+    </div>
+    <div class="header-right">
+      <div class="current-price">59,284.92</div>
+      <div class="price-change">▲ +40,170.55 (+210.5%) 10年比</div>
+      <div class="price-date">2026年4月末 終値</div>
+    </div>
+  </header>
+
+  <!-- KPI -->
+  <div class="kpi-row">
+    <div class="kpi">
+      <div class="kpi-label">10年前比</div>
+      <div class="kpi-value up">+210.5%</div>
+      <div class="kpi-sub">2016年1月末: 17,518</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">期間最高値</div>
+      <div class="kpi-value">62,931</div>
+      <div class="kpi-sub">2026年5月7日 ※最新</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">期間最安値(月末)</div>
+      <div class="kpi-value">15,576</div>
+      <div class="kpi-sub">2016年6月（Brexit）</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">最大下落幅(1ヶ月)</div>
+      <div class="kpi-value down">▼ 7,787</div>
+      <div class="kpi-sub">2026年3月 -13.2%</div>
+    </div>
+  </div>
+
+  <!-- Year summary bar -->
+  <div class="year-row" id="yearBar"></div>
+
+  <!-- Main chart -->
+  <div class="chart-card">
+    <div class="chart-header">
+      <div class="chart-title">月次終値チャート（月末終値ベース）</div>
+      <div class="period-badge">2016.01 → 2026.04</div>
+    </div>
+    <div class="chart-wrap">
+      <canvas id="mainChart"></canvas>
+    </div>
+    <div class="events">
+      <div class="ev"><div class="ev-dot" style="background:#ef4444"></div>2016/6 Brexit ショック</div>
+      <div class="ev"><div class="ev-dot" style="background:#f59e0b"></div>2018/10 米中摩擦・急落</div>
+      <div class="ev"><div class="ev-dot" style="background:#ef4444"></div>2020/3 コロナ暴落</div>
+      <div class="ev"><div class="ev-dot" style="background:#22c55e"></div>2020/11 ワクチン相場</div>
+      <div class="ev"><div class="ev-dot" style="background:#f59e0b"></div>2022 円安・利上げ局面</div>
+      <div class="ev"><div class="ev-dot" style="background:#3b82f6"></div>2023 バフェット効果・外国人買い</div>
+      <div class="ev"><div class="ev-dot" style="background:#06b6d4"></div>2024/2 史上最高値更新（34年ぶり）</div>
+      <div class="ev"><div class="ev-dot" style="background:#a78bfa"></div>2025/10 AI相場 52,000台</div>
+      <div class="ev"><div class="ev-dot" style="background:#22c55e"></div>2026/2 58,850 最高値圏</div>
+    </div>
+  </div>
+
+  <footer>出典: 世界経済のネタ帳・日経平均プロフィル（日本経済新聞社）／ nikkei.joho-box.net ※月末終値ベース　免責: 本チャートは情報提供のみを目的とし、投資助言ではありません。</footer>
+
+</div>
+
+<script>
+// ─── 月次終値データ 2016-01 〜 2026-04 ───
+const rawData = [
+  // 2016
+  17518.30, 16026.76, 16758.67, 16666.05, 17234.98, 15575.92,
+  16569.27, 16887.40, 16449.84, 17425.02, 18308.48, 19114.37,
+  // 2017
+  19041.34, 19118.99, 18909.26, 19196.74, 19650.57, 20033.43,
+  19925.18, 19646.24, 20356.28, 22011.61, 22724.96, 22764.94,
+  // 2018
+  23098.29, 22068.24, 21454.30, 22467.87, 22201.82, 22304.51,
+  22553.72, 22865.15, 24120.04, 21920.46, 22351.06, 20014.77,
+  // 2019
+  20773.49, 21385.16, 21205.81, 22258.73, 20601.19, 21275.92,
+  21521.53, 20704.37, 21755.84, 22927.04, 23293.91, 23656.62,
+  // 2020
+  23205.18, 21142.96, 18917.01, 20193.69, 21877.89, 22288.14,
+  21710.00, 23139.76, 23185.12, 22977.13, 26644.71, 27444.17,
+  // 2021
+  27663.39, 28966.01, 29178.80, 28812.63, 28860.08, 28791.53,
+  27283.59, 28089.54, 29452.66, 29520.57, 29432.70, 28791.71,
+  // 2022
+  27001.98, 26526.82, 27821.43, 26847.90, 27279.80, 26393.04,
+  27801.64, 28091.53, 25937.21, 27587.46, 27968.99, 26094.50,
+  // 2023
+  27327.11, 27445.56, 28041.48, 28856.44, 30887.88, 33189.04,
+  33172.22, 32619.34, 31857.62, 30858.85, 33486.89, 33464.17,
+  // 2024
+  36286.71, 39166.19, 40369.44, 38274.05, 38487.90, 39583.08,
+  39101.82, 38647.75, 37919.55, 39081.25, 38208.03, 39894.54,
+  // 2025
+  39572.49, 37155.50, 35617.56, 36045.38, 37965.10, 40487.39,
+  41069.82, 42718.47, 44932.63, 52411.34, 50253.91, 50339.48,
+  // 2026
+  53322.85, 58850.27, 51063.72, 59284.92
+];
+
+// ラベル生成
+const labels = [];
+for (let y = 2016; y <= 2026; y++) {
+  const maxM = (y === 2026) ? 4 : 12;
+  for (let m = 1; m <= maxM; m++) {
+    labels.push(`${y}/${String(m).padStart(2,'0')}`);
+  }
+}
+
+// 年別サマリーカード
+const yearlyData = [
+  { year: 2016, start: 17518.30, end: 19114.37 },
+  { year: 2017, start: 19041.34, end: 22764.94 },
+  { year: 2018, start: 23098.29, end: 20014.77 },
+  { year: 2019, start: 20773.49, end: 23656.62 },
+  { year: 2020, start: 23205.18, end: 27444.17 },
+  { year: 2021, start: 27663.39, end: 28791.71 },
+  { year: 2022, start: 27001.98, end: 26094.50 },
+  { year: 2023, start: 27327.11, end: 33464.17 },
+  { year: 2024, start: 36286.71, end: 39894.54 },
+  { year: 2025, start: 39572.49, end: 50339.48 },
+];
+
+const yearBar = document.getElementById('yearBar');
+yearlyData.forEach(d => {
+  const chg = ((d.end - d.start) / d.start * 100).toFixed(1);
+  const isUp = chg >= 0;
+  const div = document.createElement('div');
+  div.className = 'year-card';
+  div.innerHTML = `
+    <div class="yr">${d.year}</div>
+    <div class="yr-val">${(d.end/1000).toFixed(1)}k</div>
+    <div class="yr-chg ${isUp ? 'up' : 'down'}">${isUp ? '▲' : '▼'}${Math.abs(chg)}%</div>
+  `;
+  yearBar.appendChild(div);
+});
+
+// グラデーション + Chart.js
+const ctx = document.getElementById('mainChart').getContext('2d');
+
+const gradient = ctx.createLinearGradient(0, 0, 0, 420);
+gradient.addColorStop(0,   'rgba(59,130,246,0.35)');
+gradient.addColorStop(0.5, 'rgba(59,130,246,0.08)');
+gradient.addColorStop(1,   'rgba(59,130,246,0.00)');
+
+// イベントマーカー（x軸インデックス → label）
+const eventAnnotations = {
+  6:   { label: 'Brexit', color: '#ef4444' },
+  34:  { label: '米中摩擦', color: '#f59e0b' },
+  50:  { label: 'コロナ暴落', color: '#ef4444' },
+  55:  { label: 'ワクチン相場', color: '#22c55e' },
+  73:  { label: '最高値更新（34年ぶり）', color: '#06b6d4' },
+  112: { label: 'AI相場 52k', color: '#a78bfa' },
+  121: { label: '58,850', color: '#22c55e' },
+};
+
+new Chart(ctx, {
+  type: 'line',
+  data: {
+    labels,
+    datasets: [{
+      label: '日経平均（月末終値）',
+      data: rawData,
+      borderColor: '#3b82f6',
+      borderWidth: 2,
+      backgroundColor: gradient,
+      pointRadius: rawData.map((_, i) => eventAnnotations[i] ? 5 : 0),
+      pointHoverRadius: 5,
+      pointBackgroundColor: rawData.map((_, i) =>
+        eventAnnotations[i] ? eventAnnotations[i].color : '#3b82f6'
+      ),
+      pointBorderColor: rawData.map((_, i) =>
+        eventAnnotations[i] ? eventAnnotations[i].color : '#3b82f6'
+      ),
+      tension: 0.3,
+      fill: true,
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: { mode: 'index', intersect: false },
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: '#111827',
+        borderColor: '#1d2b42',
+        borderWidth: 1,
+        titleColor: '#94a3b8',
+        bodyColor: '#e2e8f0',
+        titleFont: { family: 'Noto Sans JP', size: 11 },
+        bodyFont: { family: 'DM Mono', size: 13 },
+        padding: 10,
+        callbacks: {
+          title: items => items[0].label,
+          label: item => {
+            const v = item.raw;
+            const ev = eventAnnotations[item.dataIndex];
+            const base = ` ¥${v.toLocaleString('ja-JP', {minimumFractionDigits:2})}`;
+            return ev ? base + `  ★ ${ev.label}` : base;
+          }
+        }
+      }
+    },
+    scales: {
+      x: {
+        ticks: {
+          color: '#64748b',
+          maxTicksLimit: 22,
+          font: { family: 'DM Mono', size: 10 },
+          callback: (val, i) => {
+            const lbl = labels[i];
+            return lbl && lbl.endsWith('/01') ? lbl.split('/')[0] : '';
+          }
+        },
+        grid: { color: 'rgba(255,255,255,0.04)' },
+        border: { color: '#1d2b42' }
+      },
+      y: {
+        position: 'right',
+        ticks: {
+          color: '#64748b',
+          font: { family: 'DM Mono', size: 10 },
+          callback: v => (v >= 10000 ? (v/10000).toFixed(1) + '万' : v.toLocaleString())
+        },
+        grid: { color: 'rgba(255,255,255,0.05)' },
+        border: { color: '#1d2b42' },
+        min: 14000,
+      }
+    }
+  }
+});
+</script>
+</body>
+</html>
